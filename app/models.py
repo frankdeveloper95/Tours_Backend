@@ -86,3 +86,7 @@ class TokenPayload(SQLModel):
 
 class TokenData(BaseModel):
     username: str | None = None
+
+
+class Stripe(BaseModel):
+    product_id: int | None = None
