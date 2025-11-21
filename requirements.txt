@@ -1,0 +1,12 @@
+fastapi[standard]
+email-validator
+pwdlib[argon2]
+pydantic
+emails
+alembic
+psycopg[binary]
+sqlmodel
+pydantic-settings
+pyjwt
+faker
+stripe
