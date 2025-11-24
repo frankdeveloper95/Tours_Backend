@@ -46,7 +46,6 @@ class User(SQLModel, table=True):
 
     rol: Rol = Relationship(back_populates="users")
     estado: Estado = Relationship(back_populates="users")
-
     operadora_created_user: Optional["Operadora"] = Relationship(
         back_populates="users_operadora_created",
         sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_created"}
@@ -66,6 +65,36 @@ class User(SQLModel, table=True):
     guia_usuario_updated: Optional["Guia"] = Relationship(
         back_populates="usuario_updated",
         sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_updated"}
+    )
+    tour_usuario_created: Optional["Tour"] = Relationship(
+        back_populates="usuario_created",
+        sa_relationship_kwargs={
+            "foreign_keys": "Tour.id_usuario_created"
+        }
+    )
+    tour_usuario_updated: Optional["Tour"] = Relationship(
+        back_populates="usuario_updated",
+        sa_relationship_kwargs={
+            "foreign_keys": "Tour.id_usuario_updated"
+        }
+    )
+    reservas_usuario_id: Optional["Reservas"] = Relationship(
+        back_populates="usuario",
+        sa_relationship_kwargs={
+            "foreign_keys": "Reservas.id_usuario"
+        }
+    )
+    reservas_usuario_created: Optional["Reservas"] = Relationship(
+        back_populates="usuario_created",
+        sa_relationship_kwargs={
+            "foreign_keys": "Reservas.id_usuario_created"
+        }
+    )
+    reservas_usuario_updated: Optional["Reservas"] = Relationship(
+        back_populates="usuario_updated",
+        sa_relationship_kwargs={
+            "foreign_keys": "Reservas.id_usuario_updated"
+        }
     )
 
 
@@ -116,6 +145,7 @@ class Operadora(SQLModel, table=True):
         back_populates="operadora_updated_user",
         sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_updated"}
     )
+    tours: list["Tour"] = Relationship(back_populates="operadora")
 
 
 class OperadoraCreate(SQLModel):
@@ -165,6 +195,7 @@ class Guia(SQLModel, table=True):
         back_populates="guia_usuario_updated",
         sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_updated"}
     )
+    tour_guia: list["Tour"] = Relationship(back_populates="guia")
 
 
 class GuiaCreate(SQLModel):
@@ -191,6 +222,147 @@ class GuiaUpdate(SQLModel):
     id_operadora: int | None = None
     calificacion: float | None = None
     idiomas: list[str] | None = None
+
+
+class Tour(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    id_operadora: int | None = Field(default=None, foreign_key="operadora.id")
+    id_guia: int | None = Field(default=None, foreign_key="guia.id")
+    nombre: str
+    descripcion: str
+    fecha: datetime.date
+    hora_inicio: datetime.time
+    hora_fin: datetime.time
+    precio: int
+    capacidad_maxima: int
+    destino: str
+    image_url: str | None = Field(default=None)
+    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_date: datetime.datetime | None = Field(default=None)
+    id_usuario_created: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+
+    usuario_created: User | None = Relationship(
+        back_populates="tour_usuario_created",
+        sa_relationship_kwargs={"foreign_keys": "Tour.id_usuario_created"}
+    )
+    usuario_updated: User | None = Relationship(
+        back_populates="tour_usuario_updated",
+        sa_relationship_kwargs={"foreign_keys": "Tour.id_usuario_updated"}
+    )
+    operadora: Optional["Operadora"] = Relationship(back_populates="tours")
+    guia: Optional["Guia"] = Relationship(back_populates="tour_guia")
+    reservas: Optional["Reservas"] = Relationship(back_populates="tour")
+
+
+class TourCreate(SQLModel):
+    id_operadora: int
+    id_guia: int
+    nombre: str
+    descripcion: str
+    fecha: datetime.date
+    hora_inicio: datetime.time
+    hora_fin: datetime.time
+    precio: int
+    capacidad_maxima: int
+    destino: str
+    image_url: str
+    id_usuario_created: uuid.UUID | None = None
+
+
+class TourUpdate(SQLModel):
+    id_operadora: int | None = None
+    id_guia: int | None = None
+    nombre: str | None = None
+    descripcion: str | None = None
+    fecha: datetime.date | None = None
+    hora_inicio: datetime.time | None = None
+    hora_fin: datetime.time | None = None
+    precio: int | None = None
+    capacidad_maxima: int | None = None
+    destino: str | None = None
+    id_usuario_created: uuid.UUID | None = None
+
+
+class TourPublic(SQLModel):
+    id: int
+    nombre: str
+    descripcion: str
+    fecha: datetime.date
+    hora_inicio: datetime.time
+    hora_fin: datetime.time
+    precio: int
+    capacidad_maxima: int
+    destino: str
+    operadora: Operadora
+    guia: GuiaWithUser
+    image_url: str
+
+
+class ReservaEnum(StrEnum):
+    PAGADA = "PAGADA"
+    PENDIENTE = "PENDIENTE"
+    CANCELADA = "PAGADA"
+
+
+class Estado_Reserva(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    estado: ReservaEnum = Field(sa_column=Column(Enum(ReservaEnum)), default=ReservaEnum.PENDIENTE)
+
+    reservas: list["Reservas"] = Relationship(back_populates="estado")
+
+
+class Reservas(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    id_tour: int | None = Field(default=None, foreign_key="tour.id")
+    id_usuario: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    id_reserva_estado: int = Field(default=1, foreign_key="estado_reserva.id")
+    nombre_cliente: str = Field(max_length=255)
+    email_cliente: str = Field(max_length=255)
+    numero_personas: int
+    fecha_reserva: datetime.datetime | None = Field(default=None)
+    fecha_modificacion_reserva: datetime.datetime | None = Field(default=None)
+    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_date: datetime.datetime | None = Field(default=None)
+    id_usuario_created: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+
+    tour: Tour | None = Relationship(back_populates="reservas")
+    estado: Estado_Reserva | None = Relationship(back_populates="reservas")
+    usuario: User | None = Relationship(
+        back_populates="reservas_usuario_id",
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario"}
+    )
+    usuario_created: User | None = Relationship(
+        back_populates="reservas_usuario_created",
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_created"}
+    )
+    usuario_updated: User | None = Relationship(
+        back_populates="reservas_usuario_updated",
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_updated"}
+    )
+
+
+class ReservasCreate(SQLModel):
+    id_tour: int
+    id_usuario: uuid.UUID
+    id_reserva_estado: int = Field(default=2)
+    nombre_cliente: str | None = Field(default=None, max_length=255)
+    email_cliente: str | None = Field(default=None, max_length=255)
+    numero_personas: int = Field(default=1)
+
+
+class ReservasUpdate(SQLModel):
+    id_tour: int | None = None
+    id_reserva_estado: int | None = None
+    nombre_cliente: str | None = None
+    email_cliente: str | None = None
+    numero_personas: int | None = None
+
+
+class ReservasPublic(SQLModel):
+    tour: TourPublic
+    estado: Estado_Reserva
 
 
 # Contents of JWT token
