@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from enum import StrEnum
-from typing import Optional
+from typing import Optional, Dict
 
 from pydantic import EmailStr, BaseModel
 from sqlmodel import Field, SQLModel, Column, Enum, Relationship, JSON
@@ -94,6 +94,18 @@ class User(SQLModel, table=True):
         back_populates="usuario_updated",
         sa_relationship_kwargs={
             "foreign_keys": "Reservas.id_usuario_updated"
+        }
+    )
+    zarpe_usuario_created: Optional["Zarpe"] = Relationship(
+        back_populates="usuario_created",
+        sa_relationship_kwargs={
+            "foreign_keys": "Zarpe.id_usuario_created"
+        }
+    )
+    zarpe_usuario_updated: Optional["Zarpe"] = Relationship(
+        back_populates="usuario_updated",
+        sa_relationship_kwargs={
+            "foreign_keys": "Zarpe.id_usuario_updated"
         }
     )
 
@@ -196,6 +208,7 @@ class Guia(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_updated"}
     )
     tour_guia: list["Tour"] = Relationship(back_populates="guia")
+    zarpes: list["Zarpe"] = Relationship(back_populates="guia")
 
 
 class GuiaCreate(SQLModel):
@@ -253,6 +266,7 @@ class Tour(SQLModel, table=True):
     operadora: Optional["Operadora"] = Relationship(back_populates="tours")
     guia: Optional["Guia"] = Relationship(back_populates="tour_guia")
     reservas: Optional["Reservas"] = Relationship(back_populates="tour")
+    zarpes: list["Zarpe"] = Relationship(back_populates="tour")
 
 
 class TourCreate(SQLModel):
@@ -363,6 +377,49 @@ class ReservasUpdate(SQLModel):
 class ReservasPublic(SQLModel):
     tour: TourPublic
     estado: Estado_Reserva
+
+
+class Zarpe(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    id_tour: int | None = Field(default=None, foreign_key="tour.id")
+    id_guia: int | None = Field(default=None, foreign_key="guia.id")
+    detalles: Dict = Field(sa_column=Column(JSON))
+    capitan: str = Field(max_length=255)
+    marinero: str = Field(max_length=255)
+    observaciones: str = Field(max_length=255)
+    id_usuario_created: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    updated_date: datetime.datetime | None = Field(default=None)
+
+    tour: Tour | None = Relationship(back_populates="zarpes")
+    guia: Guia | None = Relationship(back_populates="zarpes")
+    usuario_created: User | None = Relationship(
+        back_populates="zarpe_usuario_created",
+        sa_relationship_kwargs={"foreign_keys": "Zarpe.id_usuario_created"}
+    )
+    usuario_updated: User | None = Relationship(
+        back_populates="zarpe_usuario_updated",
+        sa_relationship_kwargs={"foreign_keys": "Zarpe.id_usuario_updated"}
+    )
+
+
+class ZarpeCreate(SQLModel):
+    id_tour: int
+    id_guia: int
+    detalles: Dict
+    capitan: str = Field(max_length=255)
+    marinero: str = Field(max_length=255)
+    observaciones: str = Field(max_length=255)
+
+
+class ZarpeUpdate(SQLModel):
+    id_tour: int | None = None
+    id_guia: int | None = None
+    detalles: Dict | None = None
+    capitan: str | None = Field(default=None, max_length=255)
+    marinero: str | None = Field(default=None, max_length=255)
+    observaciones: str | None = Field(default=None, max_length=255)
 
 
 # Contents of JWT token
