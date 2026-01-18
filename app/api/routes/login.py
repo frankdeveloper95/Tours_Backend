@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
 from app import crud
-from app.api.deps import get_current_active_user
+from app.auth.deps import get_current_active_user
 from app.core.database import engine
 from app.core.security import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.models import Token, User, UserPublic

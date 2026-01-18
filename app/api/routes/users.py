@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.params import Depends
 from sqlmodel import select
 
-from app.api.deps import SessionDep, get_current_active_superuser
+from app.auth.deps import SessionDep, get_current_active_superuser
 from app.core.security import get_password_hash
 from app.models import User, UserCreate, UserUpdate
 
@@ -23,15 +23,38 @@ async def add_user(user: UserCreate, session: SessionDep):
     return db_user
 
 @router.get("/users", response_model=list[User])
-async def get_users(session: SessionDep, offset: int = 0,limit: Annotated[int, Query(le=100)] = 100):
-    users = session.exec(select(User).offset(offset).limit(limit)).all()
+async def get_users(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+    estado: Annotated[str, Query(pattern="^(active|inactive|all)$")] = "active",
+):
+    stmt = select(User)
+
+    if estado == "active":
+        stmt = stmt.where(User.estado_id == 1)
+    elif estado == "inactive":
+        stmt = stmt.where(User.estado_id == 2)
+    # all => sin filtro
+
+    users = session.exec(stmt.offset(offset).limit(limit)).all()
     return users
 
 @router.get("/users/{user_id}", response_model=User)
-async def get_user_by_id(user_id: uuid.UUID, session: SessionDep):
+async def get_user_by_id(
+    user_id: uuid.UUID,
+    session: SessionDep,
+    include_inactive: Annotated[bool, Query()] = False
+):
     user_db = session.get(User, user_id)
+
     if not user_db:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Regla de negocio: no exponer inactivos por defecto
+    if user_db.estado_id == 2 and not include_inactive:
+        raise HTTPException(status_code=404, detail="User not found")
+
     return user_db
 
 @router.put("/users/{user_id}", response_model=User)
@@ -55,7 +78,23 @@ async def delete_user(user_id: uuid.UUID, session: SessionDep):
     user_db = session.get(User, user_id)
     if not user_db:
         raise HTTPException(status_code=404, detail="User not found")
-    session.delete(user_db)
+    # Si ya está inactivo, no hacer nada (idempotente)
+    if user_db.estado_id == 2:
+        return JSONResponse(
+            content={
+                "message": "La cuenta ya está inactiva",
+                "user": jsonable_encoder(user_db)
+            }
+        )
+    #Soft delete: desactivar cuenta
+    user_db.estado_id = 2
+    session.add(user_db)
     session.commit()
-    return JSONResponse(content={"message":"Usuario Eliminado","user":jsonable_encoder(user_db)})
+    session.refresh(user_db)
+    return JSONResponse(
+        content={
+            "message": "Cuenta desactivada correctamente",
+            "user": jsonable_encoder(user_db)
+        }
+    )
 

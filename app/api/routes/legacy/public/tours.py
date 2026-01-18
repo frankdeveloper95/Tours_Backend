@@ -1,10 +1,12 @@
+
+# LEGACY ROUTER - NO USAR (se reemplazó por app/api/routes/*_public.py)
 import glob
 import os
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from sqlmodel import select
-from app.api.deps import SessionDep
+from app.auth.deps import SessionDep
 from app.models import Tour, TourPublic
 
 router = APIRouter(tags=["public_tours"])
@@ -29,7 +31,7 @@ async def get_tour_by_id(
 async def get_image_tour(
         id: int,
 ):
-    file_path = '/home/frank/Documents/python/backend/app/assets/images/tours/'
+    file_path = 'C:/Users/Roberto/Dropbox/Mi PC (LAPTOP-FVSL94QG)/Documents/PROYECTO/Tours_Backend/app/assets/images/tours/'
     pattern = os.path.join(file_path, f"{id}.*")
     matches = glob.glob(pattern)
     if not matches:

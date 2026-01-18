@@ -20,8 +20,15 @@ def get_user_by_email(*, session: Session, email: str) -> User | None:
 
 def authenticate(*, session: Session, email: str, password: str) -> User | None:
     db_user = get_user_by_email(session=session, email=email)
+    # No existe el usuario
     if not db_user:
         return None
+    # Usuario inactivo (estado_id = 2)
+    if db_user.estado_id != 1:
+        return None
+    # Password incorrecto
     if not verify_password(password, db_user.hashed_password):
         return None
+    # Usuario válido y activo
     return db_user
+

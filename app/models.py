@@ -1,11 +1,11 @@
-import datetime
+import datetime as dt
 import uuid
 from enum import StrEnum
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 from pydantic import EmailStr, BaseModel
 from sqlmodel import Field, SQLModel, Column, Enum, Relationship, JSON
-
+from sqlalchemy.dialects.postgresql import JSONB
 
 class RolEnum(StrEnum):
     ADMIN = "ADMIN"
@@ -41,72 +41,63 @@ class User(SQLModel, table=True):
     telefono: str | None = Field(default=None, max_length=10)
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     hashed_password: str
-    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_date: datetime.datetime | None = None
+    created_date: dt.datetime = Field(default_factory=dt.datetime.now)
+    updated_date: dt.datetime | None = None
 
-    rol: Rol = Relationship(back_populates="users")
-    estado: Estado = Relationship(back_populates="users")
+    rol: "Rol" = Relationship(back_populates="users")
+    estado: "Estado" = Relationship(back_populates="users")
+
     operadora_created_user: Optional["Operadora"] = Relationship(
         back_populates="users_operadora_created",
-        sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_created"}
+        sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_created"},
     )
     operadora_updated_user: Optional["Operadora"] = Relationship(
         back_populates="users_operadora_updated",
-        sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_updated"}
+        sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_updated"},
     )
+
     guia_usuario_id: Optional["Guia"] = Relationship(
         back_populates="usuario",
-        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario"}
+        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario"},
     )
     guia_usuario_created: Optional["Guia"] = Relationship(
         back_populates="usuario_created",
-        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_created"}
+        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_created"},
     )
     guia_usuario_updated: Optional["Guia"] = Relationship(
         back_populates="usuario_updated",
-        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_updated"}
+        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_updated"},
     )
+
     tour_usuario_created: Optional["Tour"] = Relationship(
         back_populates="usuario_created",
-        sa_relationship_kwargs={
-            "foreign_keys": "Tour.id_usuario_created"
-        }
+        sa_relationship_kwargs={"foreign_keys": "Tour.id_usuario_created"},
     )
     tour_usuario_updated: Optional["Tour"] = Relationship(
         back_populates="usuario_updated",
-        sa_relationship_kwargs={
-            "foreign_keys": "Tour.id_usuario_updated"
-        }
+        sa_relationship_kwargs={"foreign_keys": "Tour.id_usuario_updated"},
     )
-    reservas_usuario_id: Optional["Reservas"] = Relationship(
+
+    reservas_usuario_id: list["Reservas"] = Relationship(
         back_populates="usuario",
-        sa_relationship_kwargs={
-            "foreign_keys": "Reservas.id_usuario"
-        }
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario"},
     )
-    reservas_usuario_created: Optional["Reservas"] = Relationship(
+    reservas_usuario_created: list["Reservas"] = Relationship(
         back_populates="usuario_created",
-        sa_relationship_kwargs={
-            "foreign_keys": "Reservas.id_usuario_created"
-        }
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_created"},
     )
-    reservas_usuario_updated: Optional["Reservas"] = Relationship(
+    reservas_usuario_updated: list["Reservas"] = Relationship(
         back_populates="usuario_updated",
-        sa_relationship_kwargs={
-            "foreign_keys": "Reservas.id_usuario_updated"
-        }
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_updated"},
     )
+
     zarpe_usuario_created: Optional["Zarpe"] = Relationship(
         back_populates="usuario_created",
-        sa_relationship_kwargs={
-            "foreign_keys": "Zarpe.id_usuario_created"
-        }
+        sa_relationship_kwargs={"foreign_keys": "Zarpe.id_usuario_created"},
     )
     zarpe_usuario_updated: Optional["Zarpe"] = Relationship(
         back_populates="usuario_updated",
-        sa_relationship_kwargs={
-            "foreign_keys": "Zarpe.id_usuario_updated"
-        }
+        sa_relationship_kwargs={"foreign_keys": "Zarpe.id_usuario_updated"},
     )
 
 
@@ -144,18 +135,18 @@ class Operadora(SQLModel, table=True):
     correo: EmailStr = Field(unique=True, max_length=100)
     telefono: str = Field(unique=True, max_length=10)
     direccion: str = Field(max_length=100)
-    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_date: datetime.datetime | None = None
+    created_date: dt.datetime = Field(default_factory=dt.datetime.now)
+    updated_date: dt.datetime | None = None
     id_usuario_created: uuid.UUID | None = Field(foreign_key="user.id")
     id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
 
-    users_operadora_created: User = Relationship(
+    users_operadora_created: "User" = Relationship(
         back_populates="operadora_created_user",
-        sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_created"}
+        sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_created"},
     )
-    users_operadora_updated: User = Relationship(
+    users_operadora_updated: "User" = Relationship(
         back_populates="operadora_updated_user",
-        sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_updated"}
+        sa_relationship_kwargs={"foreign_keys": "Operadora.id_usuario_updated"},
     )
     tours: list["Tour"] = Relationship(back_populates="operadora")
 
@@ -178,8 +169,8 @@ class OperadoraUpdate(SQLModel):
 
 class OperadoraOut(OperadoraCreate):
     id: int
-    created_date: datetime.datetime
-    updated_date: datetime.datetime | None
+    created_date: dt.datetime
+    updated_date: dt.datetime | None
     id_usuario_created: uuid.UUID | None
     id_usuario_updated: uuid.UUID | None
 
@@ -190,22 +181,22 @@ class Guia(SQLModel, table=True):
     id_operadora: int | None = Field(default=None, foreign_key="operadora.id")
     calificacion: float | None = None
     idiomas: list[str] | None = Field(default=None, sa_column=Column(JSON))
-    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_date: datetime.datetime | None = None
+    created_date: dt.datetime = Field(default_factory=dt.datetime.now)
+    updated_date: dt.datetime | None = None
     id_usuario_created: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
 
-    usuario: User | None = Relationship(
+    usuario: Optional["User"] = Relationship(
         back_populates="guia_usuario_id",
-        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario"}
+        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario"},
     )
-    usuario_created: User | None = Relationship(
+    usuario_created: Optional["User"] = Relationship(
         back_populates="guia_usuario_created",
-        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_created"}
+        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_created"},
     )
-    usuario_updated: User | None = Relationship(
+    usuario_updated: Optional["User"] = Relationship(
         back_populates="guia_usuario_updated",
-        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_updated"}
+        sa_relationship_kwargs={"foreign_keys": "Guia.id_usuario_updated"},
     )
     tour_guia: list["Tour"] = Relationship(back_populates="guia")
     zarpes: list["Zarpe"] = Relationship(back_populates="guia")
@@ -225,8 +216,8 @@ class GuiaWithUser(SQLModel):
     id_operadora: int | None
     calificacion: float | None
     idiomas: list[str] | None
-    created_date: datetime.datetime
-    updated_date: datetime.datetime | None
+    created_date: dt.datetime
+    updated_date: dt.datetime | None
     id_usuario_created: uuid.UUID | None
     id_usuario_updated: uuid.UUID | None
 
@@ -241,32 +232,44 @@ class Tour(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     id_operadora: int | None = Field(default=None, foreign_key="operadora.id")
     id_guia: int | None = Field(default=None, foreign_key="guia.id")
+
     nombre: str
     descripcion: str
-    fecha: datetime.date
-    hora_inicio: datetime.time
-    hora_fin: datetime.time
+    fecha: dt.date
+    hora_inicio: dt.time
+    hora_fin: dt.time
     precio: int
     capacidad_maxima: int
     destino: str
+
     image_url: str | None = Field(default=None)
-    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_date: datetime.datetime | None = Field(default=None)
+
+    # NUEVOS CAMPOS
+    incluye: List[str] = Field(default_factory=list, sa_column=Column(JSONB))
+    no_incluye: List[str] = Field(default_factory=list, sa_column=Column(JSONB))
+    que_llevar: List[str] = Field(default_factory=list, sa_column=Column(JSONB))
+    itinerario: List[str] = Field(default_factory=list, sa_column=Column(JSONB))
+    politicas: str | None = Field(default=None)
+
+    created_date: dt.datetime = Field(default_factory=dt.datetime.now)
+    updated_date: dt.datetime | None = Field(default=None)
     id_usuario_created: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
 
-    usuario_created: User | None = Relationship(
+    usuario_created: Optional["User"] = Relationship(
         back_populates="tour_usuario_created",
-        sa_relationship_kwargs={"foreign_keys": "Tour.id_usuario_created"}
+        sa_relationship_kwargs={"foreign_keys": "Tour.id_usuario_created"},
     )
-    usuario_updated: User | None = Relationship(
+    usuario_updated: Optional["User"] = Relationship(
         back_populates="tour_usuario_updated",
-        sa_relationship_kwargs={"foreign_keys": "Tour.id_usuario_updated"}
+        sa_relationship_kwargs={"foreign_keys": "Tour.id_usuario_updated"},
     )
+
     operadora: Optional["Operadora"] = Relationship(back_populates="tours")
     guia: Optional["Guia"] = Relationship(back_populates="tour_guia")
-    reservas: Optional["Reservas"] = Relationship(back_populates="tour")
+    reservas: list["Reservas"] = Relationship(back_populates="tour")
     zarpes: list["Zarpe"] = Relationship(back_populates="tour")
+
 
 
 class TourCreate(SQLModel):
@@ -274,14 +277,23 @@ class TourCreate(SQLModel):
     id_guia: int
     nombre: str
     descripcion: str
-    fecha: datetime.date
-    hora_inicio: datetime.time
-    hora_fin: datetime.time
+    fecha: dt.date
+    hora_inicio: dt.time
+    hora_fin: dt.time
     precio: int
     capacidad_maxima: int
     destino: str
     image_url: str
+
+    # NUEVOS CAMPOS
+    incluye: List[str] = []
+    no_incluye: List[str] = []
+    que_llevar: List[str] = []
+    itinerario: List[str] = []
+    politicas: str | None = None
+
     id_usuario_created: uuid.UUID | None = None
+
 
 
 class TourUpdate(SQLModel):
@@ -289,22 +301,31 @@ class TourUpdate(SQLModel):
     id_guia: int | None = None
     nombre: str | None = None
     descripcion: str | None = None
-    fecha: datetime.date | None = None
-    hora_inicio: datetime.time | None = None
-    hora_fin: datetime.time | None = None
+    fecha: dt.date | None = None
+    hora_inicio: dt.time | None = None
+    hora_fin: dt.time | None = None
     precio: int | None = None
     capacidad_maxima: int | None = None
     destino: str | None = None
-    id_usuario_created: uuid.UUID | None = None
+    image_url: str | None = None
+
+    #NUEVOS CAMPOS (opcionales para no pisar si no se envían)
+    incluye: List[str] | None = None
+    no_incluye: List[str] | None = None
+    que_llevar: List[str] | None = None
+    itinerario: List[str] | None = None
+    politicas: str | None = None
+
+    id_usuario_updated: uuid.UUID | None = None
 
 
 class TourPublic(SQLModel):
     id: int
     nombre: str
     descripcion: str
-    fecha: datetime.date
-    hora_inicio: datetime.time
-    hora_fin: datetime.time
+    fecha: dt.date
+    hora_inicio: dt.time
+    hora_fin: dt.time
     precio: int
     capacidad_maxima: int
     destino: str
@@ -312,11 +333,18 @@ class TourPublic(SQLModel):
     guia: GuiaWithUser
     image_url: str
 
+    # NUEVOS CAMPOS
+    incluye: List[str] = []
+    no_incluye: List[str] = []
+    que_llevar: List[str] = []
+    itinerario: List[str] = []
+    politicas: str | None = None
+
 
 class ReservaEnum(StrEnum):
     PAGADA = "PAGADA"
     PENDIENTE = "PENDIENTE"
-    CANCELADA = "PAGADA"
+    CANCELADA = "CANCELADA"
 
 
 class Estado_Reserva(SQLModel, table=True):
@@ -334,26 +362,28 @@ class Reservas(SQLModel, table=True):
     nombre_cliente: str = Field(max_length=255)
     email_cliente: str = Field(max_length=255)
     numero_personas: int
-    fecha_reserva: datetime.datetime | None = Field(default=None)
-    fecha_modificacion_reserva: datetime.datetime | None = Field(default=None)
-    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_date: datetime.datetime | None = Field(default=None)
+    fecha_reserva: dt.datetime | None = Field(default=None)
+    fecha_modificacion_reserva: dt.datetime | None = Field(default=None)
+    created_date: dt.datetime = Field(default_factory=dt.datetime.now)
+    updated_date: dt.datetime | None = Field(default=None)
     id_usuario_created: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
 
-    tour: Tour | None = Relationship(back_populates="reservas")
-    estado: Estado_Reserva | None = Relationship(back_populates="reservas")
-    usuario: User | None = Relationship(
+    # AQUÍ TAMBIÉN
+    tour: Optional["Tour"] = Relationship(back_populates="reservas")
+    estado: Optional["Estado_Reserva"] = Relationship(back_populates="reservas")
+
+    usuario: Optional["User"] = Relationship(
         back_populates="reservas_usuario_id",
-        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario"}
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario"},
     )
-    usuario_created: User | None = Relationship(
+    usuario_created: Optional["User"] = Relationship(
         back_populates="reservas_usuario_created",
-        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_created"}
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_created"},
     )
-    usuario_updated: User | None = Relationship(
+    usuario_updated: Optional["User"] = Relationship(
         back_populates="reservas_usuario_updated",
-        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_updated"}
+        sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_updated"},
     )
 
 
@@ -364,6 +394,25 @@ class ReservasCreate(SQLModel):
     nombre_cliente: str | None = Field(default=None, max_length=255)
     email_cliente: str | None = Field(default=None, max_length=255)
     numero_personas: int = Field(default=1)
+
+
+class ParticipanteCreate(SQLModel):
+    nombre: str = Field(max_length=255)
+    email: Optional[str] = Field(default=None, max_length=255)
+
+
+class ReservasCreatePublic(SQLModel):
+    id_tour: int
+    fecha_reserva: dt.datetime
+    numero_personas: int = Field(default=1, ge=1)
+    nombre_cliente: str = Field(max_length=255)
+    email_cliente: EmailStr
+    # participantes: List[ParticipanteCreate] = []  #
+
+
+class ReservasCreateAdmin(ReservasCreatePublic):
+    id_usuario: uuid.UUID
+    id_reserva_estado: int = Field(default=2)
 
 
 class ReservasUpdate(SQLModel):
@@ -389,18 +438,20 @@ class Zarpe(SQLModel, table=True):
     observaciones: str = Field(max_length=255)
     id_usuario_created: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
-    created_date: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_date: datetime.datetime | None = Field(default=None)
+    created_date: dt.datetime = Field(default_factory=dt.datetime.now)
+    updated_date: dt.datetime | None = Field(default=None)
 
-    tour: Tour | None = Relationship(back_populates="zarpes")
-    guia: Guia | None = Relationship(back_populates="zarpes")
-    usuario_created: User | None = Relationship(
+    # AQUÍ TAMBIÉN
+    tour: Optional["Tour"] = Relationship(back_populates="zarpes")
+    guia: Optional["Guia"] = Relationship(back_populates="zarpes")
+
+    usuario_created: Optional["User"] = Relationship(
         back_populates="zarpe_usuario_created",
-        sa_relationship_kwargs={"foreign_keys": "Zarpe.id_usuario_created"}
+        sa_relationship_kwargs={"foreign_keys": "Zarpe.id_usuario_created"},
     )
-    usuario_updated: User | None = Relationship(
+    usuario_updated: Optional["User"] = Relationship(
         back_populates="zarpe_usuario_updated",
-        sa_relationship_kwargs={"foreign_keys": "Zarpe.id_usuario_updated"}
+        sa_relationship_kwargs={"foreign_keys": "Zarpe.id_usuario_updated"},
     )
 
 
@@ -422,7 +473,6 @@ class ZarpeUpdate(SQLModel):
     observaciones: str | None = Field(default=None, max_length=255)
 
 
-# Contents of JWT token
 class Token(SQLModel):
     access_token: str
     token_type: str = "bearer"

@@ -6,8 +6,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
-from app.api.deps import SessionDep
-from app.api.deps import get_current_active_superuser
+from app.auth.deps import SessionDep
+from app.auth.deps import get_current_active_superuser
 from app.models import Zarpe, ZarpeCreate, User, ZarpeUpdate
 
 router = APIRouter(tags=['zarpe'], dependencies=[Depends(get_current_active_superuser)])

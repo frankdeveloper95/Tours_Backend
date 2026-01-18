@@ -6,8 +6,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
-from app.api.deps import SessionDep
-from app.api.deps import get_current_active_superuser
+from app.auth.deps import SessionDep
+from app.auth.deps import get_current_active_superuser
 from app.models import Guia, GuiaCreate, User, GuiaWithUser, GuiaUpdate
 
 router = APIRouter(tags=["guia"], dependencies=[Depends(get_current_active_superuser)])

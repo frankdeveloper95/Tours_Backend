@@ -6,7 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
-from app.api.deps import get_current_active_superuser, SessionDep
+from app.auth.deps import get_current_active_superuser, SessionDep
 from app.models import Operadora, OperadoraCreate, User, OperadoraOut, OperadoraUpdate
 
 router = APIRouter(tags=["operadora"], dependencies=[Depends(get_current_active_superuser)])

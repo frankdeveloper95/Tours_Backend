@@ -1,6 +1,8 @@
+# LEGACY ROUTER - NO USAR (se reemplazó por app/api/routes/*_public.py)
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
-from app.api.deps import get_current_active_user, SessionDep
+from app.auth.deps import get_current_active_user, SessionDep
 from app.models import Reservas, User, ReservasPublic
 
 router = APIRouter(tags=["public"], dependencies=[Depends(get_current_active_user)])
