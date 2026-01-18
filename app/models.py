@@ -7,6 +7,7 @@ from pydantic import EmailStr, BaseModel
 from sqlmodel import Field, SQLModel, Column, Enum, Relationship, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 
+
 class RolEnum(StrEnum):
     ADMIN = "ADMIN"
     USER = "USER"
@@ -113,6 +114,7 @@ class UserCreate(SQLModel):
 
 
 class UserPublic(BaseModel):
+    id: uuid.UUID
     email: EmailStr
     rol_id: int
     nombre: str | None
@@ -271,7 +273,6 @@ class Tour(SQLModel, table=True):
     zarpes: list["Zarpe"] = Relationship(back_populates="tour")
 
 
-
 class TourCreate(SQLModel):
     id_operadora: int
     id_guia: int
@@ -295,7 +296,6 @@ class TourCreate(SQLModel):
     id_usuario_created: uuid.UUID | None = None
 
 
-
 class TourUpdate(SQLModel):
     id_operadora: int | None = None
     id_guia: int | None = None
@@ -309,7 +309,7 @@ class TourUpdate(SQLModel):
     destino: str | None = None
     image_url: str | None = None
 
-    #NUEVOS CAMPOS (opcionales para no pisar si no se envían)
+    # NUEVOS CAMPOS (opcionales para no pisar si no se envían)
     incluye: List[str] | None = None
     no_incluye: List[str] | None = None
     que_llevar: List[str] | None = None
@@ -385,6 +385,21 @@ class Reservas(SQLModel, table=True):
         back_populates="reservas_usuario_updated",
         sa_relationship_kwargs={"foreign_keys": "Reservas.id_usuario_updated"},
     )
+
+
+class ReservasPublic(SQLModel):
+    id_tour: int
+    id_usuario: uuid.UUID
+    id_reserva_estado: int
+    nombre_cliente: str
+    email_cliente: str
+    numero_personas: int
+    fecha_reserva: dt.datetime
+    fecha_modificacion_reserva: dt.datetime
+
+    tour: Tour
+    estado: Estado_Reserva
+    usuario: UserPublic
 
 
 class ReservasCreate(SQLModel):

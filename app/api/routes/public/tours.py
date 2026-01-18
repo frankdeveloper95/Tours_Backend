@@ -31,7 +31,7 @@ async def get_tour_by_id(
 async def get_image_tour(
         id: int,
 ):
-    file_path = 'C:/Users/Roberto/Dropbox/Mi PC (LAPTOP-FVSL94QG)/Documents/PROYECTO/Tours_Backend/app/assets/images/tours/'
+    file_path = '/home/frank/Documents/tours_proyecto/Tours_Backend/app/assets/images/tours'
     pattern = os.path.join(file_path, f"{id}.*")
     matches = glob.glob(pattern)
     if not matches:

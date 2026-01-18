@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from app.auth.deps import SessionDep, get_current_active_user
-from app.models import Reservas, ReservasCreatePublic, User
+from app.models import Reservas, ReservasCreatePublic, User, ReservasPublic
 from app.reservas.service import ReservasService
 
 router = APIRouter(prefix="/reservas", tags=["Reservas"])
@@ -17,7 +17,7 @@ async def create_reserva(
     return ReservasService.create_reserva_public(session, reserva_in, current_user)
 
 
-@router.get("/me", response_model=list[Reservas])
+@router.get("/me/{current_user}", response_model=list[ReservasPublic])
 async def get_mis_reservas(
     session: SessionDep,
     current_user: User = Depends(get_current_active_user),

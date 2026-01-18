@@ -10,7 +10,7 @@ from app.models import Stripe, Tour, User
 
 router = APIRouter(tags=["Checkout"])
 stripe.api_key = str(settings.STRIPE_SECRET_KEY)
-DOMAIN = 'http://localhost:5173/'
+DOMAIN = str(settings.FRONTEND_HOST) + '/'
 
 
 @router.post('/checkout')

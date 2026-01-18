@@ -1,6 +1,9 @@
 from fastapi import APIRouter
-from app.api.routes.public import auth_register
+
+from app.api.routes.public import auth_register, tours
+
 api_router_public = APIRouter()
 
 
 api_router_public.include_router(auth_register.router)
+api_router_public.include_router(tours.router)
