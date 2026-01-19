@@ -240,7 +240,7 @@ class Tour(SQLModel, table=True):
     fecha: dt.date
     hora_inicio: dt.time
     hora_fin: dt.time
-    precio: int
+    precio: float
     capacidad_maxima: int
     destino: str
 
@@ -274,19 +274,18 @@ class Tour(SQLModel, table=True):
 
 
 class TourCreate(SQLModel):
-    id_operadora: int
+    id_operadora: int | None = None
     id_guia: int
     nombre: str
     descripcion: str
     fecha: dt.date
     hora_inicio: dt.time
     hora_fin: dt.time
-    precio: int
+    precio: float
     capacidad_maxima: int
     destino: str
-    image_url: str
+    image_url: str | None = None
 
-    # NUEVOS CAMPOS
     incluye: List[str] = []
     no_incluye: List[str] = []
     que_llevar: List[str] = []
@@ -304,7 +303,7 @@ class TourUpdate(SQLModel):
     fecha: dt.date | None = None
     hora_inicio: dt.time | None = None
     hora_fin: dt.time | None = None
-    precio: int | None = None
+    precio: float | None = None
     capacidad_maxima: int | None = None
     destino: str | None = None
     image_url: str | None = None
@@ -326,7 +325,7 @@ class TourPublic(SQLModel):
     fecha: dt.date
     hora_inicio: dt.time
     hora_fin: dt.time
-    precio: int
+    precio: float
     capacidad_maxima: int
     destino: str
     operadora: Operadora
