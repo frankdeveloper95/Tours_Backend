@@ -246,6 +246,9 @@ class Tour(SQLModel, table=True):
 
     image_url: str | None = Field(default=None)
 
+    # NUEVO: Soft delete
+    is_active: bool = Field(default=True)
+
     # NUEVOS CAMPOS
     incluye: List[str] = Field(default_factory=list, sa_column=Column(JSONB))
     no_incluye: List[str] = Field(default_factory=list, sa_column=Column(JSONB))
@@ -285,7 +288,6 @@ class TourCreate(SQLModel):
     capacidad_maxima: int
     destino: str
     image_url: str | None = None
-
     incluye: List[str] = []
     no_incluye: List[str] = []
     que_llevar: List[str] = []
@@ -331,7 +333,6 @@ class TourPublic(SQLModel):
     operadora: Operadora
     guia: GuiaWithUser
     image_url: str
-
     # NUEVOS CAMPOS
     incluye: List[str] = []
     no_incluye: List[str] = []

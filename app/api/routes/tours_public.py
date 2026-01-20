@@ -14,7 +14,7 @@ async def get_tours(
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ):
-    return ToursService.get_tours(session, offset, limit)
+    return ToursService.get_tours(session, offset, limit, is_active=True)
 
 @router.get("/{id}", response_model=TourPublic)
 async def get_tour_by_id(id: int, session: SessionDep):

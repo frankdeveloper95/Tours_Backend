@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Query, HTTPException
+from fastapi import HTTPException
 
 from app.auth.deps import SessionDep
 from app.models import TourCreate, TourUpdate, Tour, User
@@ -8,60 +8,71 @@ import datetime as dt
 
 
 class ToursService:
+
+    # ============================================================
+    # LISTAR TOURS (ADMIN o PUBLIC)
+    # ============================================================
     @staticmethod
     def get_tours(
         session: SessionDep,
         offset: int = 0,
-        limit: Annotated[int, Query(le=100)] = 100,
+        limit: int = 100,
+        is_active: bool | None = None
     ):
-        return ToursRepository.list(session, offset, limit)
+        """
+        - ADMIN → is_active=None → devuelve todos
+        - PUBLIC → is_active=True → solo activos
+        """
+        return ToursRepository.list(session, offset, limit, is_active)
 
+
+    # ============================================================
+    # OBTENER TOUR POR ID
+    # ============================================================
     @staticmethod
     def get_tour(session: SessionDep, tour_id: int):
         return ToursRepository.get_by_id(session, tour_id)
 
     SPONDYLUS_OPERADORA_ID = 12  
 
+    # ============================================================
+    # CREAR TOUR
+    # ============================================================
     @staticmethod
     def create_tour(session: SessionDep, tour_in: TourCreate, current_user: User):
 
-        # ---------------------------------------------------------
-        # 1️⃣ Forzar operadora Spondylus Tour SIEMPRE
-        # ---------------------------------------------------------
         tour_in.id_operadora = ToursService.SPONDYLUS_OPERADORA_ID
-
-        # ---------------------------------------------------------
-        # 2️⃣ Asignar usuario creador
-        # ---------------------------------------------------------
         tour_in.id_usuario_created = current_user.id
 
-        # ---------------------------------------------------------
-        # 3️⃣ Imagen por defecto si viene vacía
-        # ---------------------------------------------------------
         if not tour_in.image_url:
             tour_in.image_url = "https://placehold.co/600x400?text=Tour"
 
-        # ---------------------------------------------------------
-        # 4️⃣ Crear instancia del modelo Tour
-        # ---------------------------------------------------------
+        # 🔥 FIX: Normalizar fecha para evitar desfase por timezone
+        if isinstance(tour_in.fecha, dt.datetime):
+            tour_in.fecha = tour_in.fecha.date()
+
         tour = Tour.model_validate(
             tour_in,
-            update={
-                "created_date": dt.datetime.now()
-            }
+            update={"created_date": dt.datetime.now()}
         )
 
-        # ---------------------------------------------------------
-        # 5️⃣ Guardar en BD
-        # ---------------------------------------------------------
+        print("✅ Tour creado:", tour)
         return ToursRepository.create(session, tour)
 
 
+    # ============================================================
+    # ACTUALIZAR TOUR
+    # ============================================================
     @staticmethod
     def update_tour(session: SessionDep, tour_id: int, tour_in: TourUpdate, current_user: User):
         tour_db = ToursRepository.get_by_id(session, tour_id)
 
         data = tour_in.model_dump(exclude_unset=True)
+
+        # 🔥 FIX: Normalizar fecha para evitar desfase por timezone
+        if "fecha" in data:
+            if isinstance(data["fecha"], dt.datetime):
+                data["fecha"] = data["fecha"].date()
 
         # Evitar pisar listas JSONB con null
         list_fields = {"incluye", "no_incluye", "que_llevar", "itinerario"}
@@ -74,8 +85,44 @@ class ToursService:
 
         return ToursRepository.update(session, tour_db, data, current_user)
 
+
+
+    # ============================================================
+    # DESACTIVAR TOUR (Soft Delete)
+    # ============================================================
     @staticmethod
-    def delete_tour_hard(session: SessionDep, tour_id: int):
+    def deactivate_tour(session: SessionDep, tour_id: int):
         tour_db = ToursRepository.get_by_id(session, tour_id)
-        ToursRepository.hard_delete(session, tour_db)
-        return tour_db
+
+        if not tour_db:
+            raise HTTPException(status_code=404, detail="Tour no encontrado")
+
+        if not tour_db.is_active:
+            raise HTTPException(status_code=400, detail="El tour ya está desactivado")
+
+        data = {
+            "is_active": False,
+            "updated_date": dt.datetime.now()
+        }
+
+        return ToursRepository.update(session, tour_db, data)
+
+    # ============================================================
+    # ACTIVAR TOUR
+    # ============================================================
+    @staticmethod
+    def activate_tour(session: SessionDep, tour_id: int):
+        tour_db = ToursRepository.get_by_id(session, tour_id)
+
+        if not tour_db:
+            raise HTTPException(status_code=404, detail="Tour no encontrado")
+
+        if tour_db.is_active:
+            raise HTTPException(status_code=400, detail="El tour ya está activo")
+
+        data = {
+            "is_active": True,
+            "updated_date": dt.datetime.now()
+        }
+
+        return ToursRepository.update(session, tour_db, data)

@@ -7,7 +7,6 @@ from app.reservas.service import ReservasService
 
 router = APIRouter(prefix="/reservas", tags=["Reservas"])
 
-
 @router.post("", response_model=Reservas)
 async def create_reserva(
     reserva_in: ReservasCreatePublic,

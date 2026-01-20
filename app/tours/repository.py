@@ -9,17 +9,22 @@ from app.models import Tour, User, Guia
 
 class ToursRepository:
     @staticmethod
-    def list(session: SessionDep, offset: int = 0, limit: int = 100):
+    def list(session: SessionDep, offset: int = 0, limit: int = 100, is_active: bool | None = None):
         stmt = (
             select(Tour)
             .options(
                 selectinload(Tour.operadora),
                 selectinload(Tour.guia).selectinload(Guia.usuario),
             )
-            .offset(offset)
-            .limit(limit)
         )
+
+        if is_active is not None:
+            stmt = stmt.where(Tour.is_active == is_active)
+
+        stmt = stmt.offset(offset).limit(limit)
+
         return session.exec(stmt).all()
+
 
     @staticmethod
     def get_by_id(session: SessionDep, tour_id: int) -> Tour:
@@ -46,14 +51,20 @@ class ToursRepository:
         return tour
 
     @staticmethod
-    def update(session: SessionDep, tour_db: Tour, data: dict, user: User) -> Tour:
+    def update(session: SessionDep, tour_db: Tour, data: dict, user: User | None = None) -> Tour:
+        # Si viene user, agregamos metadata de actualización
+        update_meta = {
+            "updated_date": datetime.datetime.now()
+        }
+
+        if user:
+            update_meta["id_usuario_updated"] = user.id
+
         tour_db.sqlmodel_update(
             data,
-            update={
-                "id_usuario_updated": user.id,
-                "updated_date": datetime.datetime.now()
-            }
+            update=update_meta
         )
+
         session.add(tour_db)
         session.commit()
         session.refresh(tour_db)
@@ -63,3 +74,5 @@ class ToursRepository:
     def hard_delete(session: SessionDep, tour_db: Tour) -> None:
         session.delete(tour_db)
         session.commit()
+
+    

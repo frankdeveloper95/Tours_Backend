@@ -8,10 +8,28 @@ from app.tours.service import ToursService
 
 router = APIRouter(
     prefix="/admin/tours",
-    tags=["Admin Tours"],
-    dependencies=[Depends(get_current_active_superuser)]
+    tags=["Admin Tours"]
 )
 
+# ============================================================
+# LISTAR TOURS (superuser)
+# ============================================================
+@router.get("", response_model=list[Tour])
+@router.get("/", response_model=list[Tour])
+async def list_tours(
+    session: SessionDep,
+    current_user: User = Depends(get_current_active_superuser),
+    offset: int = 0,
+    limit: int = 100,
+    is_active: bool | None = None
+):
+    print("🔥 Entrando a /admin/tours")
+    return ToursService.get_tours(session, offset, limit, is_active)
+
+
+# ============================================================
+# CREAR TOUR (superuser)
+# ============================================================
 @router.post("/", response_model=Tour)
 async def create_tour(
     tour_in: TourCreate,
@@ -20,6 +38,10 @@ async def create_tour(
 ):
     return ToursService.create_tour(session, tour_in, current_user)
 
+
+# ============================================================
+# ACTUALIZAR TOUR (superuser)
+# ============================================================
 @router.put("/{id}", response_model=Tour)
 async def update_tour(
     id: int,
@@ -29,10 +51,45 @@ async def update_tour(
 ):
     return ToursService.update_tour(session, id, tour_in, current_user)
 
+
+# ============================================================
+# DESACTIVAR TOUR (superuser)
+# ============================================================
 @router.delete("/{id}")
-async def delete_tour(id: int, session: SessionDep):
-    deleted = ToursService.delete_tour_hard(session, id)
+async def deactivate_tour(
+    id: int,
+    session: SessionDep,
+    current_user: User = Depends(get_current_active_superuser),
+):
+    tour = ToursService.deactivate_tour(session, id)
     return JSONResponse(content={
-        "message": "Tour eliminado correctamente",
-        "tour": jsonable_encoder(deleted)
+        "message": "Tour desactivado correctamente",
+        "tour": jsonable_encoder(tour)
     })
+
+
+# ============================================================
+# ACTIVAR TOUR (superuser)
+# ============================================================
+@router.patch("/{id}/activate")
+async def activate_tour(
+    id: int,
+    session: SessionDep,
+    current_user: User = Depends(get_current_active_superuser),
+):
+    tour = ToursService.activate_tour(session, id)
+    return JSONResponse(content={
+        "message": "Tour activado correctamente",
+        "tour": jsonable_encoder(tour)
+    })
+
+# ============================================================
+# OBTENER TOUR POR ID (superuser)
+# ============================================================
+@router.get("/{id}", response_model=Tour)
+async def get_admin_tour_by_id(
+    id: int,
+    session: SessionDep,
+    current_user: User = Depends(get_current_active_superuser)
+):
+    return ToursService.get_tour(session, id)
