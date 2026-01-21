@@ -8,7 +8,7 @@ import os
 
 router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
-STRIPE_SECRET_KEY = os.getenv("SECRET_KEY")
+STRIPE_SECRET_KEY = os.getenv("YOUR_SECRET_KEY")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 stripe.api_key = STRIPE_SECRET_KEY

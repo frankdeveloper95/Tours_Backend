@@ -4,7 +4,12 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
 from app.auth.deps import SessionDep, get_current_active_superuser
-from app.models import Reservas, ReservasCreateAdmin, User, ReservasUpdate
+from app.models import (
+    ReservasCreateAdmin,
+    User,
+    ReservasUpdate,
+    ReservasAdminRead
+)
 from app.reservas.service import ReservasService
 
 router = APIRouter(
@@ -12,8 +17,10 @@ router = APIRouter(
     tags=["Admin Reservas"],
 )
 
-
-@router.post("", response_model=Reservas)
+# ============================================================
+# Crear reserva desde admin
+# ============================================================
+@router.post("", response_model=ReservasAdminRead)
 async def create_reserva_admin(
     reserva_in: ReservasCreateAdmin,
     session: SessionDep,
@@ -22,16 +29,51 @@ async def create_reserva_admin(
     return ReservasService.create_reserva_admin(session, reserva_in, current_user)
 
 
-@router.get("", response_model=list[Reservas])
+# ============================================================
+# Listar reservas por usuario (ADMIN)
+# (IMPORTANTE: va antes de /{id})
+# ============================================================
+@router.get("/usuario/{user_id}", response_model=list[ReservasAdminRead])
+async def get_reservas_by_user(
+    user_id: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_active_superuser),
+):
+    return ReservasService.admin_list_reservas_by_user(session, user_id)
+
+
+# ============================================================
+# Listar reservas (ADMIN)
+# ============================================================
+@router.get("", response_model=list[ReservasAdminRead])
 async def get_reservas(
     session: SessionDep,
     current_user: User = Depends(get_current_active_superuser),
+    usuario_id: str | None = None,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100
 ):
+    if usuario_id:
+        return ReservasService.admin_list_reservas_by_user(session, usuario_id)
+
     return ReservasService.admin_list_reservas(session, offset, limit)
 
 
+# ============================================================
+# Obtener reserva por ID (ADMIN)
+# ============================================================
+@router.get("/{id}", response_model=ReservasAdminRead)
+async def get_reserva_by_id(
+    id: int,
+    session: SessionDep,
+    current_user: User = Depends(get_current_active_superuser),
+):
+    return ReservasService.admin_get_reserva_by_id(session, id)
+
+
+# ============================================================
+# Eliminar (cancelar) reserva
+# ============================================================
 @router.delete("/{id}")
 async def delete_reserva(
     id: int,
@@ -44,7 +86,11 @@ async def delete_reserva(
         "reserva": jsonable_encoder(deleted)
     })
 
-@router.put("/{id}", response_model=Reservas)
+
+# ============================================================
+# Actualizar reserva
+# ============================================================
+@router.put("/{id}", response_model=ReservasAdminRead)
 async def update_reserva(
     id: int,
     reserva_in: ReservasUpdate,
@@ -57,3 +103,15 @@ async def update_reserva(
         reserva_in=reserva_in,
         current_user=current_user,
     )
+
+
+# ============================================================
+# Marcar como pagada
+# ============================================================
+@router.patch("/{reserva_id}/pagar", response_model=ReservasAdminRead)
+async def admin_pagar_reserva(
+    reserva_id: int,
+    session: SessionDep,
+    current_user: User = Depends(get_current_active_superuser),
+):
+    return ReservasService.admin_pagar_reserva(session, reserva_id, current_user)

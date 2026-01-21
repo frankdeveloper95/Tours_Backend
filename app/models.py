@@ -444,6 +444,20 @@ class ReservasUpdate(SQLModel):
     email_cliente: str | None = None
     numero_personas: int | None = None
 
+
+class ReservasAdminRead(SQLModel):
+    id: int
+    nombre_cliente: str
+    email_cliente: str
+    numero_personas: int
+    fecha_reserva: dt.datetime | None
+    created_date: dt.datetime
+
+    tour: Tour
+    estado: Estado_Reserva
+    usuario: UserPublic
+
+
 class Zarpe(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     id_tour: int | None = Field(default=None, foreign_key="tour.id")
