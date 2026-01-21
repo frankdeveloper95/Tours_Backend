@@ -55,6 +55,7 @@ def get_mis_reservas_totales(
             r.nombre_cliente,
             r.numero_personas,
             r.fecha_reserva,
+            er.estado,
             r.id_tour,
 
             t.nombre AS tour_nombre,
@@ -68,6 +69,7 @@ def get_mis_reservas_totales(
 
         FROM reservas r
         JOIN tour t ON r.id_tour = t.id
+        JOIN estado_reserva er on r.id_reserva_estado = er.id
         WHERE r.id_usuario = CAST(:user_id AS uuid)
         ORDER BY r.created_date DESC
     """)
@@ -84,6 +86,7 @@ def get_mis_reservas_totales(
             "numero_personas": row.numero_personas,
             "fecha_reserva": row.fecha_reserva,
             "id_tour": row.id_tour,
+            "estado": row.estado,
 
             "tour": {
                 "nombre": row.tour_nombre,
