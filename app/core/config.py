@@ -93,6 +93,7 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: EmailStr
     FIRST_SUPERUSER_PASSWORD: str
     STRIPE_SECRET_KEY: str
+    STRIPE_WEBHOOK_SECRET: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

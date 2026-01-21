@@ -4,7 +4,8 @@ from enum import StrEnum
 from typing import Optional, Dict, List
 
 from pydantic import EmailStr, BaseModel
-from sqlmodel import Field, SQLModel, Column, Enum, Relationship, JSON
+from sqlmodel import Field, SQLModel, Relationship
+from sqlalchemy import Column, Enum, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 
 
@@ -353,7 +354,6 @@ class Estado_Reserva(SQLModel, table=True):
 
     reservas: list["Reservas"] = Relationship(back_populates="estado")
 
-
 class Reservas(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     id_tour: int | None = Field(default=None, foreign_key="tour.id")
@@ -369,7 +369,13 @@ class Reservas(SQLModel, table=True):
     id_usuario_created: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     id_usuario_updated: uuid.UUID | None = Field(default=None, foreign_key="user.id")
 
-    # AQUÍ TAMBIÉN
+    # Stripe (PaymentIntent)
+    payment_intent_id: str | None = Field(default=None, index=True)
+
+    # ⭐ NUEVO: Stripe Checkout Session
+    checkout_session_id: str | None = Field(default=None, index=True)
+
+    # Relaciones
     tour: Optional["Tour"] = Relationship(back_populates="reservas")
     estado: Optional["Estado_Reserva"] = Relationship(back_populates="reservas")
 
@@ -387,6 +393,7 @@ class Reservas(SQLModel, table=True):
     )
 
 
+
 class ReservasPublic(SQLModel):
     id_tour: int
     id_usuario: uuid.UUID
@@ -395,7 +402,7 @@ class ReservasPublic(SQLModel):
     email_cliente: str
     numero_personas: int
     fecha_reserva: dt.datetime
-    fecha_modificacion_reserva: dt.datetime
+    fecha_modificacion_reserva: dt.datetime | None = None
 
     tour: Tour
     estado: Estado_Reserva
@@ -436,12 +443,6 @@ class ReservasUpdate(SQLModel):
     nombre_cliente: str | None = None
     email_cliente: str | None = None
     numero_personas: int | None = None
-
-
-class ReservasPublic(SQLModel):
-    tour: TourPublic
-    estado: Estado_Reserva
-
 
 class Zarpe(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)

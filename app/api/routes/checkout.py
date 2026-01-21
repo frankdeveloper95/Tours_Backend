@@ -54,3 +54,4 @@ async def checkout(
         raise HTTPException(status_code=400, detail=str(e))
 
     return JSONResponse(content={"url": checkout_session.url})
+

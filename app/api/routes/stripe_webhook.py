@@ -1,5 +1,4 @@
 import datetime
-import uuid
 import stripe
 from fastapi import APIRouter, Request, Header, HTTPException
 from sqlmodel import select
@@ -10,6 +9,7 @@ from app.models import Reservas, Estado_Reserva, ReservaEnum
 
 router = APIRouter(tags=["Stripe Webhook"])
 stripe.api_key = str(settings.STRIPE_SECRET_KEY)
+
 
 @router.post("/stripe/webhook")
 async def stripe_webhook(
@@ -28,41 +28,69 @@ async def stripe_webhook(
     except Exception:
         raise HTTPException(status_code=400, detail="Webhook inválido")
 
-    if event["type"] == "checkout.session.completed":
-        s = event["data"]["object"]
+    event_type = event["type"]
 
-        user_id_str = s.get("client_reference_id")
-        md = s.get("metadata") or {}
-        id_tour = md.get("id_tour")
-        numero_personas = int(md.get("numero_personas") or 1)
+    # ============================================================
+    # 1) FLUJO NUEVO: Checkout Session completado
+    # ============================================================
+    if event_type == "checkout.session.completed":
+        session_obj = event["data"]["object"]
 
-        if not user_id_str or not id_tour:
+        # Stripe Checkout → metadata["reserva_id"]
+        reserva_id = session_obj.get("metadata", {}).get("reserva_id")
+
+        if not reserva_id:
             return {"ok": True}
 
-        user_id = uuid.UUID(user_id_str)
-        now = datetime.datetime.now()
+        reserva = session.get(Reservas, int(reserva_id))
 
-        # ✅ estado PAGADA (por tu tabla estado_reserva)
-        pagada = session.exec(
+        if not reserva:
+            return {"ok": True}
+
+        # Obtener estado PAGADA
+        estado_pagada = session.exec(
             select(Estado_Reserva).where(Estado_Reserva.estado == ReservaEnum.PAGADA)
         ).first()
 
-        id_estado_pagada = pagada.id if pagada else 1
-
-        # ✅ crea reserva
-        reserva = Reservas(
-            id_tour=int(id_tour),
-            id_usuario=user_id,
-            id_reserva_estado=id_estado_pagada,
-            nombre_cliente=(s.get("customer_details") or {}).get("name") or "Cliente",
-            email_cliente=(s.get("customer_details") or {}).get("email") or "sin-email",
-            numero_personas=numero_personas,
-            fecha_reserva=now,
-            created_date=now,
-            id_usuario_created=user_id,
-        )
+        reserva.id_reserva_estado = estado_pagada.id
+        reserva.updated_date = datetime.datetime.now()
+        reserva.checkout_session_id = session_obj["id"]
 
         session.add(reserva)
         session.commit()
+
+        return {"ok": True}
+
+    # ============================================================
+    # 2) FLUJO VIEJO: PaymentIntent (Stripe Elements)
+    # ============================================================
+    if event_type == "payment_intent.succeeded":
+        pi = event["data"]["object"]
+
+        reserva_id = pi.metadata.get("reserva_id")
+
+        reserva = None
+
+        if reserva_id:
+            reserva = session.get(Reservas, int(reserva_id))
+        else:
+            reserva = session.exec(
+                select(Reservas).where(Reservas.payment_intent_id == pi.id)
+            ).first()
+
+        if not reserva:
+            return {"ok": True}
+
+        estado_pagada = session.exec(
+            select(Estado_Reserva).where(Estado_Reserva.estado == ReservaEnum.PAGADA)
+        ).first()
+
+        reserva.id_reserva_estado = estado_pagada.id
+        reserva.updated_date = datetime.datetime.now()
+
+        session.add(reserva)
+        session.commit()
+
+        return {"ok": True}
 
     return {"ok": True}
