@@ -1,15 +1,18 @@
-from fastapi import APIRouter, HTTPException, Depends
-from app.auth.deps import SessionDep, get_current_active_user
-from app.reservas.service import ReservasService
-from app.pagos.service import StripeService
-from app.models import ReservasCreatePublic, User
+import json
+
 import stripe
-import os
+from fastapi import APIRouter, HTTPException, Depends
+
+from app.auth.deps import SessionDep, get_current_active_user
+from app.core.config import settings
+from app.models import ReservasCreatePublic, User, Tour
+from app.pagos.service import StripeService
+from app.reservas.service import ReservasService
 
 router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
-STRIPE_SECRET_KEY = os.getenv("YOUR_SECRET_KEY")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+STRIPE_SECRET_KEY = str(settings.STRIPE_SECRET_KEY)
+FRONTEND_URL = str(settings.FRONTEND_HOST) + "/"
 
 stripe.api_key = STRIPE_SECRET_KEY
 
@@ -24,12 +27,11 @@ def create_payment_intent(
     current_user: User = Depends(get_current_active_user),
 ):
     reserva = ReservasService.create_reserva(session, reserva_in, current_user)
-    monto = reserva.numero_personas * 10000
+    unit_amount = int(round(float(reserva.tour.precio) * 100))
+    monto = reserva.numero_personas * unit_amount
     pi = StripeService.create_payment_intent(monto, reserva.id)
 
     reserva.payment_intent_id = pi.id
-    session.add(reserva)
-    session.commit()
 
     return {
         "clientSecret": pi.client_secret,
@@ -48,13 +50,24 @@ def create_checkout_session(
     current_user: User = Depends(get_current_active_user),
 ):
     try:
-        # 1) Crear reserva
-        reserva = ReservasService.create_reserva(session, reserva_in, current_user)
+        # fetch the Tour (do not treat Tour as a Reserva)
+        tour = session.get(Tour, reserva_in.id_tour)
+        if not tour:
+            raise HTTPException(status_code=404, detail="Tour not found")
 
-        # 2) Calcular monto
-        monto = reserva.numero_personas * 10000  # en centavos
+        # calculate amount (price * number_of_people) in cents
+        unit_amount = int(round(float(tour.precio) * 100))
+        monto = reserva_in.numero_personas * unit_amount  # in cents
 
-        # 3) Crear sesión de Stripe Checkout
+        # compact metadata payload (strings only)
+        reserva_payload = {
+            "tour_id": str(reserva_in.id_tour),
+            "fecha_reserva": reserva_in.fecha_reserva.isoformat(),
+            "numero_personas": str(reserva_in.numero_personas),
+            "user_email": current_user.email,
+        }
+
+        # create Stripe Checkout session (do not persist Reserva here)
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             mode="payment",
@@ -63,25 +76,20 @@ def create_checkout_session(
                     "price_data": {
                         "currency": "usd",
                         "product_data": {
-                            "name": f"Reserva Tour #{reserva.id}",
-                            "description": f"Fecha: {reserva.fecha_reserva}",
+                            "name": f"Reserva Tour {tour.nombre}",
+                            "description": f"Fecha: {reserva_in.fecha_reserva}",
                         },
                         "unit_amount": monto,
                     },
                     "quantity": 1,
                 }
             ],
-            customer_email=current_user.email, 
-            metadata={"reserva_id": str(reserva.id)}, 
-            success_url=f"{FRONTEND_URL}/protected/reservas", 
-            cancel_url=f"{FRONTEND_URL}/protected/checkout?tourId={reserva.id_tour}", )
+            customer_email=current_user.email,
+            metadata={"reserva_payload": json.dumps(reserva_payload)},
+            success_url=f"{FRONTEND_URL}protected/reservas",
+            cancel_url=f"{FRONTEND_URL}home",
+        )
 
-        # 4) Guardar checkout_session_id
-        reserva.checkout_session_id = checkout_session.id
-        session.add(reserva)
-        session.commit()
-
-        # 5) Devolver URL de Stripe
         return {"url": checkout_session.url}
 
     except Exception as e:

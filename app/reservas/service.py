@@ -1,4 +1,7 @@
 import datetime as dt
+from typing import Optional
+
+from sqlmodel import select
 from fastapi import HTTPException
 
 from app.auth.deps import SessionDep
@@ -10,7 +13,6 @@ from app.models import (
     User
 )
 from app.reservas.repository import ReservasRepository
-
 
 # Estados de reserva
 ESTADO_RESERVA_PENDIENTE = 2
@@ -141,6 +143,81 @@ class ReservasService:
 
         return ReservasRepository.update(session, reserva_db, data)
 
+    @staticmethod
+    def create_reserva_from_metadata(session, payload: dict, stripe_session_obj: Optional[dict] = None) -> Reservas:
+        """
+        Create and persist a Reservas row using model column names.
+        - Expects payload keys: 'tour_id' (or 'id_tour'), 'fecha_reserva' (ISO), 'numero_personas', 'user_email' (optional), 'nombre_cliente' (optional), 'email_cliente' (optional)
+        - If `stripe_session_obj` is provided, use its customer details to fill missing name/email and to set checkout/payment ids.
+        """
+        # resolve tour id
+        tour_id_raw = payload.get("tour_id") or payload.get("id_tour")
+        if not tour_id_raw:
+            raise ValueError("Missing tour_id in metadata")
+        id_tour = int(tour_id_raw)
+
+        # resolve user by email (optional)
+        user_email = payload.get("user_email") or payload.get("email_cliente")
+        user = None
+        id_usuario = None
+        if user_email:
+            user = session.exec(select(User).where(User.email == user_email)).first()
+            if user:
+                id_usuario = getattr(user, "id", None)
+
+        # customer name/email from payload or stripe session
+        nombre_cliente = payload.get("nombre_cliente")
+        email_cliente = payload.get("email_cliente") or user_email
+
+        if stripe_session_obj and isinstance(stripe_session_obj, dict):
+            cust = stripe_session_obj.get("customer_details", {}) or {}
+            nombre_cliente = nombre_cliente or cust.get("name")
+            email_cliente = email_cliente or cust.get("email") or stripe_session_obj.get("customer_email")
+
+        # ensure non-null nombre_cliente to avoid DB NOT NULL violations
+        if not nombre_cliente:
+            nombre_cliente = "Cliente"
+
+        # parse fecha_reserva
+        fecha_iso = payload.get("fecha_reserva")
+        fecha_reserva = None
+        if fecha_iso:
+            try:
+                fecha_reserva = dt.datetime.fromisoformat(fecha_iso)
+            except Exception:
+                try:
+                    d = dt.date.fromisoformat(fecha_iso)
+                    fecha_reserva = dt.datetime.combine(d, dt.time())
+                except Exception:
+                    fecha_reserva = None
+
+        numero_personas = int(payload.get("numero_personas", 1))
+
+        reserva = Reservas(
+            id_tour=id_tour,
+            id_usuario=id_usuario,
+            nombre_cliente=nombre_cliente,
+            email_cliente=email_cliente,
+            numero_personas=numero_personas,
+            fecha_reserva=fecha_reserva,
+            created_date=dt.datetime.now(),
+            updated_date=dt.datetime.now(),
+        )
+
+        # attach stripe ids if present in session object
+        if stripe_session_obj and isinstance(stripe_session_obj, dict):
+            checkout_id = stripe_session_obj.get("id")
+            if checkout_id:
+                reserva.checkout_session_id = checkout_id
+            # sometimes payment_intent is nested
+            payment_intent = stripe_session_obj.get("payment_intent") or stripe_session_obj.get("payment_intent_id")
+            if payment_intent:
+                reserva.payment_intent_id = payment_intent
+
+        session.add(reserva)
+        session.commit()
+        session.refresh(reserva)
+        return reserva
     # ============================================================
     # Actualizar reserva (ADMIN)
     # ============================================================
